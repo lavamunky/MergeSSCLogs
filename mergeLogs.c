@@ -32,7 +32,7 @@ bool currentLeap(int year);
 int numLeaps(int year);
 unsigned long parseTime(char *time);
 unsigned long searchForTimestamp(char *line);
-unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFinished);
+unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFinished, FILE *outputFile);
 
 
 
@@ -78,7 +78,24 @@ int main(int argc, const char * argv[])
     bool log1Finished = false;
     bool log2Finished = false;
     
+    FILE *outputFile;
 
+    if (s.output)
+    {
+        if (!s.outputFile)
+        {
+            fprintf(stderr, "No filename specified for output file. See %s -h for more information\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+        outputFile = fopen(s.outputFile, "a");
+        if (outputFile==NULL)
+        {
+            fprintf(stderr, "There was a problem opening the log file %s for appending", s.outputFile);
+            exit(EXIT_FAILURE);
+        }
+    }else{
+        outputFile = stdout;
+    }
     /*
         Best way to go through without using multi-threading: 
         -search for timestamps in each
@@ -103,8 +120,8 @@ int main(int argc, const char * argv[])
     for each line that doesn't have a timestamp (before finding the first timestamp) it will just print it, first from log1 then from log2. 
     Not really anything we can do here as we have no way of knowing when it was chronologically. 
     */
-    log1TS = getNextTimestamp(&line1, len1, log1, &log1Finished);
-    log2TS = getNextTimestamp(&line2, len2, log2, &log2Finished);
+    log1TS = getNextTimestamp(&line1, len1, log1, &log1Finished, outputFile);
+    log2TS = getNextTimestamp(&line2, len2, log2, &log2Finished, outputFile);
 
     
 
@@ -120,7 +137,7 @@ int main(int argc, const char * argv[])
             do
             {
                 //if log1 finished but log2 not, just show the rest of log2
-                printf("%s", line2);
+                fprintf(outputFile, "%s", line2);
             }while ((read2 = getline(&line2, &len2, log2))!=-1);
             log2Finished=true;
         }else if (log2Finished)
@@ -128,7 +145,7 @@ int main(int argc, const char * argv[])
             //if log2 finished but log1 hasn't, print the rest of log1
             do
             {
-                printf("%s", line1);
+                fprintf(outputFile, "%s", line1);
             }while ((read1 = getline(&line1, &len1, log1))!=-1);
             log1Finished=true;
         }
@@ -136,13 +153,13 @@ int main(int argc, const char * argv[])
         if (log1TS < log2TS)
         {
             //print line containing timestamp then get next timestamp
-            printf("%s", line1);
-            log1TS = getNextTimestamp(&line1, len1, log1, &log1Finished);
+            fprintf(outputFile, "%s", line1);
+            log1TS = getNextTimestamp(&line1, len1, log1, &log1Finished, outputFile);
 
         }else if (log1TS >= log2TS){
             //print line containing timestamp then get the next timestamp
-            printf("%s", line2);
-            log2TS = getNextTimestamp(&line2, len2, log2, &log2Finished);
+            fprintf(outputFile, "%s", line2);
+            log2TS = getNextTimestamp(&line2, len2, log2, &log2Finished, outputFile);
 
         }
     }
@@ -166,7 +183,7 @@ Looks for the next timestamp in the file. If it can't find one in the current li
 @param logFinished: this is a boolean determining whether the log in question is at the end (and getline() returns -1)
 @return the timestamp. 
 */
-unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFinished)
+unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFinished, FILE *outputFile)
 {
     ssize_t read = 0;
     unsigned long logTS = 0;
@@ -178,7 +195,7 @@ unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFini
         //printf("Straight away log1TS is: %lu\n", log1TS);
         if (logTS ==0)
         {
-            printf("%s", *line);    
+            fprintf(outputFile, "%s", *line);    
         }
     }
     if (read==-1)
@@ -413,8 +430,7 @@ unsigned long parseTime(char *time)
     int epochDiff = year-1970;
     if (epochDiff<0)
     {
-        
-        printf("Invalid year value found while parsing date: %s\n", time);
+        fprintf(stderr, "Invalid year value found while parsing date: %s\n", time);
         exit(EXIT_FAILURE);
         
     }
@@ -427,11 +443,11 @@ unsigned long parseTime(char *time)
 
     if (month==2 && day>29) //in array feb is down as 28 days. Think would need large-ish code change for slightly better coding
     {
-        printf("Invalid day value found while parsing date: %s\n", time);
+        fprintf(stderr, "Invalid day value found while parsing date: %s\n", time);
     } else if (month==2 && day==29 && !currentYearLeap){  //if 29th Feb, make sure it's a leap year
-        printf("Invalid day value found while parsing. Date shows 29th February on non-leap year\n");
+        fprintf(stderr, "Invalid day value found while parsing. Date shows 29th February on non-leap year\n");
     } else if (day>dayMonths[month-1] && month !=2){ //february already accounted for
-        printf("Invalid day value found while parsing date: %s\n", time);
+        fprintf(stderr, "Invalid day value found while parsing date: %s\n", time);
     }
     
     int i;
@@ -468,12 +484,12 @@ unsigned long parseTime(char *time)
  */
 void summary(const char * args[])
 {
-    printf("Usage: \t%s [Options] <filename> <filename2>\n", args[0]);
-    printf("\t%s ssc.log ssc_audit.log\t\t\tMerges the two logs by timestamp ascending. Printing to stdout. \n", args[0]);
-    printf("\t%s -f mergedLogs.log ssc.log ssc_audit.log\tMerges the the two logs by timestamp asending. Outputs to mergedLogs.log\n", args[0]);
-    printf("\t%s -d ssc.log ssc_audit.log\t\t\tMerges the two logs by timestamp in descending order.\n", args[0]);
-    printf("\t%s -h\t\t\t\t\t\tPrints this message\n", args[0]);
-    printf("\nThis program takes two logs and merges them. By default in ascending order, although this can be reverse with -d. By default the merged logs will be printed to standard output, although this can be outputted to a file with the -f switch.\n");
+    fprintf(stderr, "Usage: \t%s [Options] <filename> <filename2>\n", args[0]);
+    fprintf(stderr, "\t%s ssc.log ssc_audit.log\t\t\tMerges the two logs by timestamp ascending. Printing to stdout. \n", args[0]);
+    fprintf(stderr, "\t%s -f mergedLogs.log ssc.log ssc_audit.log\tMerges the the two logs by timestamp asending. Outputs to mergedLogs.log\n", args[0]);
+    fprintf(stderr, "\t%s -d ssc.log ssc_audit.log\t\t\tMerges the two logs by timestamp in descending order.\n", args[0]);
+    fprintf(stderr, "\t%s -h\t\t\t\t\t\tPrints this message\n", args[0]);
+    fprintf(stderr, "\nThis program takes two logs and merges them. By default in ascending order, although this can be reverse with -d. By default the merged logs will be printed to standard output, although this can be outputted to a file with the -f switch.\n");
     /*
     other functionality to think about: 
     -rolling logs, what size to roll on? 
