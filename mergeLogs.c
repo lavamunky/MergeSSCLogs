@@ -41,12 +41,14 @@ int main(int argc, const char * argv[])
     switches s;
     
     s=parseCLI(argv, argc);
+    /*
     if (!s.order)
     {
         //TODO: Implement descending order merge. This could be tricky. 
         fprintf(stderr, "Descending order not yet implemented. Please use without this option\n");
         exit(EXIT_FAILURE);
     }
+    */
     //really the sscLog2==NULL check is currently redundant. Just in case I change other functionality in the future.
     if (s.fail || s.sscLog1==NULL || s.sscLog2==NULL)
     {
@@ -67,6 +69,7 @@ int main(int argc, const char * argv[])
     if (log2==NULL)
     {
         fprintf(stderr, "There was a problem opening the file %s\n", s.sscLog2);
+        fclose(log1);
         exit(EXIT_FAILURE);
     }
 
@@ -92,7 +95,9 @@ int main(int argc, const char * argv[])
             fprintf(stderr, "No filename specified for output file. See %s -h for more information\n", argv[0]);
             exit(EXIT_FAILURE);
         }
-        outputFile = fopen(s.outputFile, "a");
+        //TODO: Include switch for being able to open file in append mode vs write? 
+        //Seems to make more sense to have it overwrite a previous log, so leaving as that by default.
+        outputFile = fopen(s.outputFile, "w");
         if (outputFile==NULL)
         {
             fprintf(stderr, "There was a problem opening the log file %s for appending", s.outputFile);
@@ -490,7 +495,8 @@ void summary(const char * args[])
     fprintf(stderr, "Usage: \t%s [Options] <filename> <filename2>\n", args[0]);
     fprintf(stderr, "\t%s ssc.log ssc_audit.log\t\t\tMerges the two logs by timestamp ascending. Printing to stdout. \n", args[0]);
     fprintf(stderr, "\t%s -f mergedLogs.log ssc.log ssc_audit.log\tMerges the the two logs by timestamp asending. Outputs to mergedLogs.log\n", args[0]);
-    fprintf(stderr, "\t%s -d ssc.log ssc_audit.log\t\t\tMerges the two logs by timestamp in descending order.\n", args[0]);
+    //fprintf(stderr, "\t%s -d ssc.log ssc_audit.log\t\t\tMerges the two logs by timestamp in descending order.\n", args[0]);
+    //fprintf(stderr, "\t%s -f mergedLogs.log -a ssc.log ssc_audit.log\t\t\tMerges the two logs, appending instead of overwriting the output file.\n", args[0]);
     fprintf(stderr, "\t%s -h\t\t\t\t\t\tPrints this message\n", args[0]);
     fprintf(stderr, "\nThis program takes two logs and merges them. By default in ascending order, although this can be reverse with -d. By default the merged logs will be printed to standard output, although this can be outputted to a file with the -f switch.\n");
     /*
