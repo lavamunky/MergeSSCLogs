@@ -8,3 +8,7 @@ Or, this includes a simple makefile.
 To run: 
 ./MergeLogs
 The summary will show you how to run ;)
+
+Known bugs: 
+
+--if the logs being merged contain Null characters '\0', then these will only be read up until this point instead of upto the end of the line. This is uncommon but possible to occur in the logs prior to merging. 

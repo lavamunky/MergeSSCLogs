@@ -159,7 +159,6 @@ int main(int argc, const char * argv[])
                 log1TS = searchForTimestamp(line1);
                 if (log1TS ==0)
                 {
-                    //ALLOW
                     printf("%s", line1);    
                 }else{
                     break;
