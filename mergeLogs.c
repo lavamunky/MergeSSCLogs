@@ -32,6 +32,7 @@ bool currentLeap(int year);
 int numLeaps(int year);
 unsigned long parseTime(char *time);
 unsigned long searchForTimestamp(char *line);
+unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFinished);
 
 
 
@@ -74,6 +75,10 @@ int main(int argc, const char * argv[])
     unsigned long log1TS = 0;
     unsigned long log2TS = 0;
 
+    bool log1Finished = false;
+    bool log2Finished = false;
+    
+
     /*
         Best way to go through without using multi-threading: 
         -search for timestamps in each
@@ -93,92 +98,52 @@ int main(int argc, const char * argv[])
         --thinking further, there may be logic simplicity advantages with multi-threading
     */
 
-    //GET INITIAL TIMESTAMPS
-    
-    while ((read1 = getline(&line1, &len1, log1))!=-1)
-    {
-        
-        //printf("Received line of length %zu :\n", read);
-        log1TS = searchForTimestamp(line1);
-        //printf("Straight away log1TS is: %lu\n", log1TS);
-        if (log1TS ==0)
-        {
-            printf("%s", line1);    
-        }else{
-            while ((read2 = getline(&line2, &len2, log2))!=-1)
-            {
-                log2TS = searchForTimestamp(line2);
-                
-                if (log2TS==0)
-                {
-                    printf("%s", line2); 
-                    
-                }else{
-                    //break out of this loop when first timestamp encountered
-                    break;   
-                }
-                
-            }
-            //at this point should have timestamps for first and second log, so break out of loop
-            break;
-        }
+    /*
+    Get initial timestamps:
+    for each line that doesn't have a timestamp (before finding the first timestamp) it will just print it, first from log1 then from log2. 
+    Not really anything we can do here as we have no way of knowing when it was chronologically. 
+    */
+    log1TS = getNextTimestamp(&line1, len1, log1, &log1Finished);
+    log2TS = getNextTimestamp(&line2, len2, log2, &log2Finished);
 
-        
-    }
+    
+
     while(true)
     {
-        //TOFIX: Looks to be correct, need to verify
-        
-        //if at end of both files
-
-        if ((read1==-1) && (read2==-1))
+        //if at end of both files        
+        if (log1Finished && log2Finished)
         {
+            //if both logs finished, we're done. Can finish now. 
             break;
-        }else if (read1==-1)
+        }else if (log1Finished)
         {
-            //if log1 finished but log2 not, just show the rest of log2
             do
             {
+                //if log1 finished but log2 not, just show the rest of log2
                 printf("%s", line2);
             }while ((read2 = getline(&line2, &len2, log2))!=-1);
-        }else if (read2==-1)
+            log2Finished=true;
+        }else if (log2Finished)
         {
-            //if log2 finished but log2 hasn't, print the rest of log1
+            //if log2 finished but log1 hasn't, print the rest of log1
             do
             {
                 printf("%s", line1);
             }while ((read1 = getline(&line1, &len1, log1))!=-1);
+            log1Finished=true;
         }
+
         if (log1TS < log2TS)
         {
-            //print line containing timestamp
+            //print line containing timestamp then get next timestamp
             printf("%s", line1);
-            while ((read1 = getline(&line1, &len1, log1))!=-1)
-            {
-                
-                log1TS = searchForTimestamp(line1);
-                if (log1TS ==0)
-                {
-                    printf("%s", line1);    
-                }else{
-                    break;
-                }
-            }
+            log1TS = getNextTimestamp(&line1, len1, log1, &log1Finished);
+
         }else if (log1TS >= log2TS){
-            //print line containing timestamp
+            //print line containing timestamp then get the next timestamp
             printf("%s", line2);
-            while ((read2 = getline(&line2, &len2, log2))!=-1)
-            {
-                //printf("log2 loop\n");
-                log2TS = searchForTimestamp(line2);
-                //printf("Straight away log1TS is: %lu\n", log1TS);
-                if (log2TS ==0)
-                {
-                    printf("%s", line2);    
-                }else{
-                    break;
-                }
-            }
+            log2TS = getNextTimestamp(&line2, len2, log2, &log2Finished);
+
         }
     }
 
@@ -193,6 +158,33 @@ int main(int argc, const char * argv[])
     
 }
 
+/**
+Looks for the next timestamp in the file. If it can't find one in the current line it prints. 
+@param line: the pointer to the line. Couldn't use char *line as it nullified the output
+@param len: the length parameter, mainly just to go into getline(). This isn't particularly needed but could potentially be used in later modifications
+@param log: the open log file to parse
+@param logFinished: this is a boolean determining whether the log in question is at the end (and getline() returns -1)
+@return the timestamp. 
+*/
+unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFinished)
+{
+    ssize_t read = 0;
+    unsigned long logTS = 0;
+    while ((logTS == 0) && (read = getline(line, &len, log))!=-1)
+    {
+        
+        //printf("Received line of length %zu :\n", read);
+        logTS = searchForTimestamp(*line);
+        //printf("Straight away log1TS is: %lu\n", log1TS);
+        if (logTS ==0)
+        {
+            printf("%s", *line);    
+        }
+    }
+    if (read==-1)
+        *logFinished=true;
+    return logTS;
+}
 /**
 Parses the line searching for the timestamp (at the start of the line)
 @param line: the pointer to the line 
