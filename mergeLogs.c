@@ -41,27 +41,32 @@ int main(int argc, const char * argv[])
     switches s;
     
     s=parseCLI(argv, argc);
-
+    if (!s.order)
+    {
+        //TODO: Implement descending order merge. This could be tricky. 
+        fprintf(stderr, "Descending order not yet implemented. Please use without this option\n");
+        exit(EXIT_FAILURE);
+    }
     //really the sscLog2==NULL check is currently redundant. Just in case I change other functionality in the future.
     if (s.fail || s.sscLog1==NULL || s.sscLog2==NULL)
     {
         summary(argv);
-    } else if (s.sscLog1==s.sscLog2)
+    } else if (!strcmp(s.sscLog1, s.sscLog2))
     {
-        printf("Log files specified are the same. Merging not necessary.");
+        fprintf(stderr, "Log files specified are the same. Merging not necessary.\n");
         exit(EXIT_FAILURE);
     }
 
     FILE *log1 = fopen(s.sscLog1, "r");
     if (log1==NULL)
     {
-        printf("There was a problem opening the file %s\n", s.sscLog1);
+        fprintf(stderr, "There was a problem opening the file %s\n", s.sscLog1);
         exit(EXIT_FAILURE);
     }
     FILE *log2 = fopen(s.sscLog2, "r");
     if (log2==NULL)
     {
-        printf("There was a problem opening the file %s\n", s.sscLog2);
+        fprintf(stderr, "There was a problem opening the file %s\n", s.sscLog2);
         exit(EXIT_FAILURE);
     }
 
@@ -190,9 +195,7 @@ unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFini
     while ((logTS == 0) && (read = getline(line, &len, log))!=-1)
     {
         
-        //printf("Received line of length %zu :\n", read);
         logTS = searchForTimestamp(*line);
-        //printf("Straight away log1TS is: %lu\n", log1TS);
         if (logTS ==0)
         {
             fprintf(outputFile, "%s", *line);    
