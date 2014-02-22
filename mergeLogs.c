@@ -34,8 +34,6 @@ unsigned long parseTime(char *time);
 unsigned long searchForTimestamp(char *line);
 unsigned long getNextTimestamp(char **line, size_t len, FILE *log, bool *logFinished, FILE *outputFile);
 
-
-
 int main(int argc, const char * argv[])
 {
     switches s;
@@ -225,6 +223,11 @@ unsigned long searchForTimestamp(char *line)
     char *timestamp = NULL;
     
     timestamp = malloc(TIMESTAMPLEN+1);
+    if (!timestamp)
+    {
+        fprintf(stderr, "problem allocating memory with malloc.\n");
+        exit(EXIT_FAILURE);
+    }
     tsEnd = stpncpy(timestamp, line, TIMESTAMPLEN);
     *tsEnd = '\0';
     ts = parseTime(timestamp);
