@@ -1,0 +1,10 @@
+This program takes 360 server/SSC logs and merges them so that they are in order chronologically. 
+To manually build: 
+
+gcc mergeLogs.c -o MergeLogs
+
+Or, this includes a simple makefile. 
+
+To run: 
+./MergeLogs
+The summary will show you how to run ;)
